@@ -24,6 +24,12 @@ class Storage {
   static Box get _ttRows => Hive.box(_boxTTRows);
   static Box get _ttIndex => Hive.box(_boxTTIndex);
 
+  static SiteRecord? siteForNode(String node) {
+    final record = _sites.get(node.trim());
+    if (record is Map) return SiteRecord.fromJson(record);
+    return null;
+  }
+
   // ---------- Site Count ----------
   static Future<void> upsertSites(List<SiteRecord> sites) async {
     final map = <String, Map<String, Object?>>{};
@@ -34,25 +40,51 @@ class Storage {
     await _sites.putAll(map);
   }
 
-  static List<String> getAreas() {
+  static List<String> getGovernorates() {
+    final governorates = <String>{};
+    for (final key in _sites.keys) {
+      final m = _sites.get(key);
+      if (m is Map) {
+        final governorate = (m['governorate'] as String?)?.trim();
+        if (governorate != null && governorate.isNotEmpty) {
+          governorates.add(governorate);
+        }
+      }
+    }
+    final list = governorates.toList()
+      ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    return list;
+  }
+
+  static List<String> getAreas({String? governorateFilter}) {
     final areas = <String>{};
     for (final key in _sites.keys) {
       final m = _sites.get(key);
       if (m is Map) {
+        final governorate = (m['governorate'] as String?)?.trim();
+        if (governorateFilter != null &&
+            (governorate == null ||
+                governorate.toLowerCase() != governorateFilter.toLowerCase())) {
+          continue;
+        }
         final area = (m['area'] as String?)?.trim();
         if (area != null && area.isNotEmpty) areas.add(area);
       }
     }
-    final list = areas.toList()..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    final list = areas.toList()
+      ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
     return list;
   }
 
   static String? areaForNode(String node) {
-    final m = _sites.get(node.trim());
-    if (m is Map) {
-      final area = (m['area'] as String?)?.trim();
-      if (area != null && area.isNotEmpty) return area;
-    }
+    final area = siteForNode(node)?.area?.trim();
+    if (area != null && area.isNotEmpty) return area;
+    return null;
+  }
+
+  static String? governorateForNode(String node) {
+    final governorate = siteForNode(node)?.governorate?.trim();
+    if (governorate != null && governorate.isNotEmpty) return governorate;
     return null;
   }
 
@@ -119,12 +151,23 @@ class Storage {
     return null;
   }
 
-  static List<TTRecord> getRowsForBatch(String batchId, {String? areaFilter}) {
+  static List<TTRecord> getRowsForBatch(
+    String batchId, {
+    String? areaFilter,
+    String? governorateFilter,
+  }) {
     final keys = _keysForBatch(batchId);
     final out = <TTRecord>[];
     for (final k in keys) {
       final r = _getRow(batchId, k);
       if (r == null) continue;
+      if (governorateFilter != null) {
+        final governorate = governorateForNode(r.node);
+        if (governorate == null ||
+            governorate.toLowerCase() != governorateFilter.toLowerCase()) {
+          continue;
+        }
+      }
       if (areaFilter != null) {
         final area = areaForNode(r.node);
         if (area == null || area.toLowerCase() != areaFilter.toLowerCase()) {
@@ -136,16 +179,35 @@ class Storage {
     return out;
   }
 
-  static DiffResult diff(String latestBatchId, String previousBatchId, {String? areaFilter}) {
-    final latest = getRowsForBatch(latestBatchId, areaFilter: areaFilter);
-    final prev = getRowsForBatch(previousBatchId, areaFilter: areaFilter);
+  static DiffResult diff(
+    String latestBatchId,
+    String previousBatchId, {
+    String? areaFilter,
+    String? governorateFilter,
+  }) {
+    final latest = getRowsForBatch(
+      latestBatchId,
+      areaFilter: areaFilter,
+      governorateFilter: governorateFilter,
+    );
+    final prev = getRowsForBatch(
+      previousBatchId,
+      areaFilter: areaFilter,
+      governorateFilter: governorateFilter,
+    );
 
     final latestByKey = {for (final r in latest) r.key: r};
     final prevByKey = {for (final r in prev) r.key: r};
 
-    final addedKeys = latestByKey.keys.toSet().difference(prevByKey.keys.toSet());
-    final clearedKeys = prevByKey.keys.toSet().difference(latestByKey.keys.toSet());
-    final stillKeys = latestByKey.keys.toSet().intersection(prevByKey.keys.toSet());
+    final addedKeys = latestByKey.keys.toSet().difference(
+      prevByKey.keys.toSet(),
+    );
+    final clearedKeys = prevByKey.keys.toSet().difference(
+      latestByKey.keys.toSet(),
+    );
+    final stillKeys = latestByKey.keys.toSet().intersection(
+      prevByKey.keys.toSet(),
+    );
 
     int weight(TTRecord r) {
       final cat = r.category.toLowerCase();
@@ -153,15 +215,15 @@ class Storage {
       final sevW = sev.contains('critical')
           ? 0
           : sev.contains('major')
-              ? 1
-              : sev.contains('minor')
-                  ? 2
-                  : 3;
+          ? 1
+          : sev.contains('minor')
+          ? 2
+          : 3;
       final catW = cat.contains('down site')
           ? 0
           : cat.contains('down cells') || cat.contains('down cell')
-              ? 1
-              : 2;
+          ? 1
+          : 2;
       final age = r.firstOccurrence == null
           ? 0
           : DateTime.now().difference(r.firstOccurrence!).inMinutes;
@@ -178,29 +240,46 @@ class Storage {
     );
   }
 
-  static Future<AppSnapshot> buildSnapshot({String? selectedArea}) async {
-    final areas = getAreas();
+  static Future<AppSnapshot> buildSnapshot({
+    String? selectedArea,
+    String? selectedGovernorate,
+  }) async {
+    final governorates = getGovernorates();
+    final areas = getAreas(governorateFilter: selectedGovernorate);
     final batches = getBatches();
     final latest = batches.isNotEmpty ? batches[0] : null;
     final previous = batches.length >= 2 ? batches[1] : null;
 
     DiffResult? diffResult;
     Map<String, int> counts = {};
+    List<TTRecord> latestRows = const [];
     if (latest != null) {
-      final rows = getRowsForBatch(latest.id, areaFilter: selectedArea);
-      counts = rows.groupListsBy((r) => r.category).map((k, v) => MapEntry(k, v.length));
+      latestRows = getRowsForBatch(
+        latest.id,
+        areaFilter: selectedArea,
+        governorateFilter: selectedGovernorate,
+      );
+      counts = latestRows
+          .groupListsBy((r) => r.category)
+          .map((k, v) => MapEntry(k, v.length));
     }
     if (latest != null && previous != null) {
-      diffResult = diff(latest.id, previous.id, areaFilter: selectedArea);
+      diffResult = diff(
+        latest.id,
+        previous.id,
+        areaFilter: selectedArea,
+        governorateFilter: selectedGovernorate,
+      );
     }
 
     return AppSnapshot(
+      governorates: governorates,
       areas: areas,
       latestBatch: latest,
       previousBatch: previous,
       diff: diffResult,
       latestCountsByCategory: counts,
+      latestRows: latestRows,
     );
   }
 }
-

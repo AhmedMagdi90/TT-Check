@@ -9,6 +9,7 @@ import '../../storage/storage.dart';
 
 class UploadScreen extends StatefulWidget {
   final AppState state;
+
   const UploadScreen({super.key, required this.state});
 
   @override
@@ -25,9 +26,9 @@ class _UploadScreenState extends State<UploadScreen> {
       allowedExtensions: const ['xlsx', 'xls'],
       withData: true,
     );
-    final f = res?.files.single;
-    if (f == null) return;
-    final bytes = f.bytes ?? await File(f.path!).readAsBytes();
+    final file = res?.files.single;
+    if (file == null) return;
+    final bytes = file.bytes ?? await File(file.path!).readAsBytes();
 
     setState(() {
       _busy = true;
@@ -38,8 +39,8 @@ class _UploadScreenState extends State<UploadScreen> {
       await Storage.upsertSites(sites);
       _status = 'Imported ${sites.length} sites.';
       await widget.state.refresh();
-    } catch (e) {
-      _status = 'Failed to import Site Count: $e';
+    } catch (error) {
+      _status = 'Failed to import Site Count: $error';
     } finally {
       if (mounted) {
         setState(() => _busy = false);
@@ -53,22 +54,22 @@ class _UploadScreenState extends State<UploadScreen> {
       allowedExtensions: const ['xlsx', 'xls'],
       withData: true,
     );
-    final f = res?.files.single;
-    if (f == null) return;
-    final bytes = f.bytes ?? await File(f.path!).readAsBytes();
+    final file = res?.files.single;
+    if (file == null) return;
+    final bytes = file.bytes ?? await File(file.path!).readAsBytes();
 
     setState(() {
       _busy = true;
       _status = 'Importing TT report...';
     });
     try {
-      final batch = await Storage.createBatch(fileName: f.name);
+      final batch = await Storage.createBatch(fileName: file.name);
       final rows = ExcelImport.parseTTReport(bytes);
       await Storage.putBatchRows(batch.id, rows);
       _status = 'Imported ${rows.length} TT rows in batch ${batch.receivedAt}.';
       await widget.state.refresh();
-    } catch (e) {
-      _status = 'Failed to import TT report: $e';
+    } catch (error) {
+      _status = 'Failed to import TT report: $error';
     } finally {
       if (mounted) {
         setState(() => _busy = false);
@@ -89,7 +90,9 @@ class _UploadScreenState extends State<UploadScreen> {
             FilledButton.icon(
               onPressed: _busy ? null : _pickAndImportSiteCount,
               icon: const Icon(Icons.map_outlined),
-              label: const Text('Upload Site Count (Area mapping)'),
+              label: const Text(
+                'Upload Site Count (Area and Governorate mapping)',
+              ),
             ),
             const SizedBox(height: 12),
             FilledButton.icon(
@@ -111,7 +114,7 @@ class _UploadScreenState extends State<UploadScreen> {
                   'MVP notes:\n'
                   '- Compare works after 2 uploads.\n'
                   '- Down Site / Down Cell are highlighted on Dashboard.\n'
-                  '- Area filter depends on matching TT “Node” to Site Count “SiteName”.',
+                  '- Area and governorate filters depend on matching TT "Node" to Site Count "SiteName".',
                   style: theme.textTheme.bodySmall,
                 ),
               ),
@@ -122,4 +125,3 @@ class _UploadScreenState extends State<UploadScreen> {
     );
   }
 }
-

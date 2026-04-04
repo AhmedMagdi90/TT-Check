@@ -10,15 +10,16 @@ class ImportBatch {
   });
 
   Map<String, Object?> toJson() => {
-        'id': id,
-        'receivedAt': receivedAt.toIso8601String(),
-        'fileName': fileName,
-      };
+    'id': id,
+    'receivedAt': receivedAt.toIso8601String(),
+    'fileName': fileName,
+  };
 
   static ImportBatch fromJson(Map data) {
     return ImportBatch(
       id: (data['id'] as String?) ?? '',
-      receivedAt: DateTime.tryParse((data['receivedAt'] as String?) ?? '') ??
+      receivedAt:
+          DateTime.tryParse((data['receivedAt'] as String?) ?? '') ??
           DateTime.fromMillisecondsSinceEpoch(0),
       fileName: (data['fileName'] as String?) ?? '',
     );
@@ -49,15 +50,15 @@ class TTRecord {
   String get key => '${category.trim()}|${ttnumber.trim()}';
 
   Map<String, Object?> toJson() => {
-        'category': category,
-        'ttnumber': ttnumber,
-        'node': node,
-        'severity': severity,
-        'actualSeverity': actualSeverity,
-        'icdStatus': icdStatus,
-        'firstOccurrence': firstOccurrence?.toIso8601String(),
-        'lastOccurrence': lastOccurrence?.toIso8601String(),
-      };
+    'category': category,
+    'ttnumber': ttnumber,
+    'node': node,
+    'severity': severity,
+    'actualSeverity': actualSeverity,
+    'icdStatus': icdStatus,
+    'firstOccurrence': firstOccurrence?.toIso8601String(),
+    'lastOccurrence': lastOccurrence?.toIso8601String(),
+  };
 
   static TTRecord fromJson(Map data) {
     DateTime? dt(String? s) => s == null ? null : DateTime.tryParse(s);
@@ -79,17 +80,13 @@ class SiteRecord {
   final String? area;
   final String? governorate;
 
-  const SiteRecord({
-    required this.siteName,
-    this.area,
-    this.governorate,
-  });
+  const SiteRecord({required this.siteName, this.area, this.governorate});
 
   Map<String, Object?> toJson() => {
-        'siteName': siteName,
-        'area': area,
-        'governorate': governorate,
-      };
+    'siteName': siteName,
+    'area': area,
+    'governorate': governorate,
+  };
 
   static SiteRecord fromJson(Map data) {
     return SiteRecord(
@@ -113,25 +110,30 @@ class DiffResult {
 }
 
 class AppSnapshot {
+  final List<String> governorates;
   final List<String> areas;
   final ImportBatch? latestBatch;
   final ImportBatch? previousBatch;
   final DiffResult? diff;
   final Map<String, int> latestCountsByCategory;
+  final List<TTRecord> latestRows;
 
   const AppSnapshot({
+    required this.governorates,
     required this.areas,
     required this.latestBatch,
     required this.previousBatch,
     required this.diff,
     required this.latestCountsByCategory,
+    required this.latestRows,
   });
 
   const AppSnapshot.empty()
-      : areas = const [],
-        latestBatch = null,
-        previousBatch = null,
-        diff = null,
-        latestCountsByCategory = const {};
+    : governorates = const [],
+      areas = const [],
+      latestBatch = null,
+      previousBatch = null,
+      diff = null,
+      latestCountsByCategory = const {},
+      latestRows = const [];
 }
-
