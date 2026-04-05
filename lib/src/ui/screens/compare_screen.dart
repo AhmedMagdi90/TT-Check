@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../state/app_state.dart';
-import '../widgets/tt_record_list.dart';
+import '../widgets/tt_record_explorer.dart';
 
 class CompareScreen extends StatelessWidget {
   final AppState state;
@@ -13,6 +13,7 @@ class CompareScreen extends StatelessWidget {
     return StreamBuilder<void>(
       stream: state.changes,
       builder: (context, _) {
+        final snapshot = state.snapshot;
         final diff = state.snapshot.diff;
         return DefaultTabController(
           length: 3,
@@ -38,25 +39,69 @@ class CompareScreen extends StatelessWidget {
             ),
             body: diff == null
                 ? const _EmptyCompare()
-                : TabBarView(
+                : Column(
                     children: [
-                      TTRecordList(
-                        rows: diff.added,
-                        emptyText: 'No new TTs in the latest upload.',
+                      _CompareBatchInfo(
+                        latestFileName: snapshot.latestBatch?.fileName,
+                        previousFileName: snapshot.previousBatch?.fileName,
                       ),
-                      TTRecordList(
-                        rows: diff.cleared,
-                        emptyText: 'No cleared TTs detected.',
-                      ),
-                      TTRecordList(
-                        rows: diff.still,
-                        emptyText: 'No still-open TTs detected.',
+                      Expanded(
+                        child: TabBarView(
+                          children: [
+                            TTRecordExplorer(
+                              title: 'Compare Added',
+                              rows: diff.added,
+                              emptyText: 'No new TTs in the latest upload.',
+                            ),
+                            TTRecordExplorer(
+                              title: 'Compare Cleared',
+                              rows: diff.cleared,
+                              emptyText: 'No cleared TTs detected.',
+                            ),
+                            TTRecordExplorer(
+                              title: 'Compare Still',
+                              rows: diff.still,
+                              emptyText: 'No still-open TTs detected.',
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
           ),
         );
       },
+    );
+  }
+}
+
+class _CompareBatchInfo extends StatelessWidget {
+  final String? latestFileName;
+  final String? previousFileName;
+
+  const _CompareBatchInfo({
+    required this.latestFileName,
+    required this.previousFileName,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (latestFileName != null) Text('Latest file: $latestFileName'),
+            if (previousFileName != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text('Previous file: $previousFileName'),
+              ),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../state/app_state.dart';
 import '../../storage/types.dart';
+import '../widgets/tt_record_explorer.dart';
 import 'tt_records_screen.dart';
 
 class DashboardScreen extends StatelessWidget {
@@ -21,6 +22,21 @@ class DashboardScreen extends StatelessWidget {
           required List<TTRecord> rows,
           required String emptyText,
         }) {
+          final info = <TTExplorerInfo>[
+            if (snap.latestBatch != null)
+              TTExplorerInfo(
+                label: 'Source file',
+                value: snap.latestBatch!.fileName,
+              ),
+            if (state.selectedGovernorate != null)
+              TTExplorerInfo(
+                label: 'Governorate filter',
+                value: state.selectedGovernorate!,
+              ),
+            if (state.selectedArea != null)
+              TTExplorerInfo(label: 'Area filter', value: state.selectedArea!),
+          ];
+
           Navigator.of(context).push(
             MaterialPageRoute(
               builder: (_) => TTRecordsScreen(
@@ -31,6 +47,7 @@ class DashboardScreen extends StatelessWidget {
                 ),
                 rows: rows,
                 emptyText: emptyText,
+                info: info,
               ),
             ),
           );
@@ -210,7 +227,8 @@ class _BatchInfo extends StatelessWidget {
             Text('Time: ${latest!.receivedAt}'),
             if (previous != null) ...[
               const Divider(height: 20),
-              Text('Previous: ${previous!.receivedAt}'),
+              Text('Previous file: ${previous!.fileName}'),
+              Text('Previous time: ${previous!.receivedAt}'),
             ],
           ],
         ),
