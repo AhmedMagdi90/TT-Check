@@ -59,26 +59,23 @@ class TTShareExportService {
       sheet.appendRow([TextCellValue(entry.key), TextCellValue(entry.value)]);
     }
 
+    sheet.appendRow([TextCellValue('Export name'), TextCellValue(exportName)]);
     sheet.appendRow([
-      const TextCellValue('Export name'),
-      TextCellValue(exportName),
-    ]);
-    sheet.appendRow([
-      const TextCellValue('Generated at'),
+      TextCellValue('Generated at'),
       TextCellValue(_formatDate(DateTime.now())),
     ]);
-    sheet.appendRow([const TextCellValue('Rows'), IntCellValue(rows.length)]);
+    sheet.appendRow([TextCellValue('Rows'), IntCellValue(rows.length)]);
     sheet.appendRow(const <CellValue?>[]);
     sheet.appendRow([
-      const TextCellValue('Category'),
-      const TextCellValue('TT Number'),
-      const TextCellValue('Node'),
-      const TextCellValue('Governorate'),
-      const TextCellValue('Area'),
-      const TextCellValue('Severity'),
-      const TextCellValue('ICD Status'),
-      const TextCellValue('First Occurrence'),
-      const TextCellValue('Last Occurrence'),
+      TextCellValue('Category'),
+      TextCellValue('TT Number'),
+      TextCellValue('Node'),
+      TextCellValue('Governorate'),
+      TextCellValue('Area'),
+      TextCellValue('Severity'),
+      TextCellValue('ICD Status'),
+      TextCellValue('First Occurrence'),
+      TextCellValue('Last Occurrence'),
     ]);
 
     for (final row in rows) {
